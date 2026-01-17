@@ -3,7 +3,6 @@ import json
 import os
 from datetime import datetime
 import duckdb
-from google.cloud import storage
 import traceback
 from kafka_logger import get_kafka_logger, log_event
 
@@ -154,22 +153,7 @@ def csv_to_parquet(request):
         })
 
         # Convert CSV to Parquet directly in GCS using DuckDB!
-        stats = convert_csv_to_parquet_gcs(csv_uri, output_uri)
-
-        # Get file sizes for comparison
-        storage_client = storage.Client()
-
-        # Input file size
-        input_parts = csv_uri[5:].split('/', 1)
-        input_bucket = storage_client.bucket(input_parts[0])
-        input_blob = input_bucket.blob(input_parts[1])
-        input_size = input_blob.size
-
-        # Output file size
-        output_parts = output_uri[5:].split('/', 1)
-        output_bucket_obj = storage_client.bucket(output_parts[0])
-        output_blob = output_bucket_obj.blob(output_parts[1])
-        output_size = output_blob.size
+        convert_csv_to_parquet_gcs(csv_uri, output_uri)
 
         # Flush Kafka producer
         get_kafka_logger().flush(timeout=5)
@@ -177,17 +161,7 @@ def csv_to_parquet(request):
         # Success response
         response = {
             'status': 'success',
-            'request_id': request_id,
-            'input': {
-                'uri': csv_uri,
-                'size_bytes': input_size
-            },
-            'output': {
-                'uri': output_uri,
-                'size_bytes': output_size,
-                'compression_ratio': round(output_size / input_size, 2)
-            },
-            'stats': stats
+            'event': 'csv_to_parquet_completed'
         }
 
         log_event('request_completed', {
