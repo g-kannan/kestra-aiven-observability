@@ -1,0 +1,4 @@
+functions-framework==3.*
+duckdb==1.4.3
+google-cloud-storage==3.*
+kafka-python==2.*
