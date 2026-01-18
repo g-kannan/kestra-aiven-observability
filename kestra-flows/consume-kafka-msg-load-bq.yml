@@ -1,0 +1,63 @@
+id: consume-kafka-msg-load-bq
+namespace: aiven
+
+tasks:
+  - id: consume
+    type: io.kestra.plugin.scripts.python.Script
+    taskRunner:
+      type: io.kestra.plugin.scripts.runner.docker.Docker
+      image: python:3.11-slim
+    beforeCommands:
+      - pip install kafka-python
+    inputFiles:
+      ca.pem: "{{ read('certs/ca.pem') }}"
+      service.cert: "{{ read('certs/service.cert') }}"
+      service.key: "{{ read('certs/service.key') }}"
+    outputFiles:
+      - messages.jsonl
+    script: |
+      import json
+      from kafka import KafkaConsumer
+
+      # Consume messages using kafka-python with SSL
+      consumer = KafkaConsumer(
+          'pipeline-events',
+          bootstrap_servers='kafka-15145f3d-project-4683.g.aivencloud.com:11353',
+          security_protocol='SSL',
+          ssl_cafile='ca.pem',
+          ssl_certfile='service.cert',
+          ssl_keyfile='service.key',
+          auto_offset_reset='earliest',
+          enable_auto_commit=True,
+          group_id='kestra-bq-loader',
+          consumer_timeout_ms=10000, 
+          value_deserializer=lambda x: json.loads(x.decode('utf-8')) if x else None
+      )
+
+      count = 0
+      with open('messages.jsonl', 'w') as f:
+          for message in consumer:
+              # Wrap the message value into a single 'value' column
+              # We serialize it back to JSON string to fit in a STRING column
+              row = {
+                  'value': json.dumps(message.value)
+              }
+              f.write(json.dumps(row) + '\n')
+              count += 1
+              if count >= 1000:
+                  break
+
+      consumer.close()
+      print(f"Formatted {count} messages for BigQuery")
+
+  - id: load_to_bq
+    type: io.kestra.plugin.gcp.bigquery.Load
+    serviceAccount: "{{ read('certs/service-account.json') }}"
+    from: "{{ outputs.consume.outputFiles['messages.jsonl'] }}"
+    destinationTable: "{{ kv('bq_pipeline_event_tbl') }}"
+    format: JSON
+    writeDisposition: WRITE_APPEND
+    schema:
+      fields:
+        - name: value
+          type: STRING
