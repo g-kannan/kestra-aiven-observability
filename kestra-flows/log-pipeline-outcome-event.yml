@@ -1,0 +1,64 @@
+id: log-pipeline-outcome-event
+namespace: audit
+
+inputs:
+  - id: messages
+    type: JSON
+    description: "JSON array of messages to send, e.g. [{\"key\": \"user-1\", \"value\": {\"event\": \"login\"}}]"
+    defaults: '[{"event": "TEST_EVENT", "status": "SUCCESS", "timestamp": "2026-01-11T13:02:46.522328Z", "executionId": "0001", "source_flowId": "send-kafka-msg", "source_namespace": "aiven"}]'
+
+tasks:
+  - id: produce
+    type: io.kestra.plugin.scripts.python.Script
+    taskRunner:
+      type: io.kestra.plugin.scripts.runner.docker.Docker
+      image: python:3.11-slim
+    beforeCommands:
+      - pip install kafka-python
+    inputFiles:
+      ca.pem: "{{ read('certs/ca.pem') }}"
+      service.cert: "{{ read('certs/service.cert') }}"
+      service.key: "{{ read('certs/service.key') }}"
+    env:
+      MESSAGES_JSON: "{{ inputs.messages }}"
+    script: |
+      import json
+      import os
+      from kafka import KafkaProducer
+
+      # Parse input messages
+      messages_json = os.environ.get('MESSAGES_JSON', '[]')
+      messages = json.loads(messages_json)
+
+      # Create producer with SSL
+      producer = KafkaProducer(
+          bootstrap_servers='kafka-15145f3d-project-4683.g.aivencloud.com:11353',
+          security_protocol='SSL',
+          ssl_cafile='ca.pem',
+          ssl_certfile='service.cert',
+          ssl_keyfile='service.key',
+          key_serializer=lambda k: k.encode('utf-8') if k else None,
+          value_serializer=lambda v: json.dumps(v).encode('utf-8')
+      )
+
+      # Send messages
+      sent_count = 0
+      for msg in messages:
+          key = msg.get('key')
+          value = msg.get('value', msg)
+          
+          future = producer.send(
+              'pipeline-events',
+              key=key,
+              value=value
+          )
+          # Wait for message to be sent
+          record_metadata = future.get(timeout=10)
+          
+          print(f"Sent: partition={record_metadata.partition}, offset={record_metadata.offset}, key={key}")
+          sent_count += 1
+
+      producer.flush()
+      producer.close()
+
+      print(f"\n✅ Successfully sent {sent_count} messages to Kafka")

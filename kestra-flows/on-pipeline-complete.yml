@@ -1,0 +1,37 @@
+id: on-pipeline-complete
+namespace: audit
+
+description: Triggers log-pipeline-outcome-event flow on pipeline completion to send execution events to Kafka
+
+tasks:
+  - id: trigger-kafka-notification
+    type: io.kestra.plugin.core.flow.Subflow
+    namespace: audit
+    flowId: log-pipeline-outcome-event
+    inputs:
+      messages: |
+        [
+          {
+            "event": "PIPELINE_COMPLETION",
+            "status": "{{ trigger.state }}",
+            "timestamp": "{{ now() }}",
+            "executionId": "{{ trigger.executionId }}",
+            "source_flowId": "{{ trigger.flowId }}",
+            "source_namespace": "{{ trigger.namespace }}"
+          }
+        ]
+    wait: false
+
+triggers:
+  - id: on_completion
+    type: io.kestra.plugin.core.trigger.Flow
+    conditions:
+      - type: io.kestra.plugin.core.condition.ExecutionStatus
+        in:
+          - SUCCESS
+          - FAILED
+          - WARNING
+      # Only trigger for flows in aiven namespace
+      - type: io.kestra.plugin.core.condition.ExecutionNamespace
+        namespace: aiven
+        prefix: false
