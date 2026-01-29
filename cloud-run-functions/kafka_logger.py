@@ -29,59 +29,59 @@ class KafkaEventLogger:
     def _initialize_producer(self):
         """Initialize Kafka producer with Aiven SSL configuration"""
         try:
-            bootstrap_servers = os.environ.get('KAFKA_BOOTSTRAP_SERVERS')
+            bootstrap_servers = os.environ.get("KAFKA_BOOTSTRAP_SERVERS")
             if not bootstrap_servers:
                 raise ValueError("KAFKA_BOOTSTRAP_SERVERS environment variable not set")
 
             # Write secrets from environment variables to temp files
             # This allows us to use secrets as env vars instead of mounted volumes
-            ca_cert_content = os.environ.get('KAFKA_CA_CERT_CONTENT')
-            cert_content = os.environ.get('KAFKA_CERT_CONTENT')
-            key_content = os.environ.get('KAFKA_KEY_CONTENT')
+            ca_cert_content = os.environ.get("KAFKA_CA_CERT_CONTENT")
+            cert_content = os.environ.get("KAFKA_CERT_CONTENT")
+            key_content = os.environ.get("KAFKA_KEY_CONTENT")
 
-            ca_file = '/tmp/ca.pem'
-            cert_file = '/tmp/service.cert'
-            key_file = '/tmp/service.key'
+            ca_file = "/tmp/ca.pem"
+            cert_file = "/tmp/service.cert"
+            key_file = "/tmp/service.key"
 
             if ca_cert_content:
-                with open(ca_file, 'w') as f:
+                with open(ca_file, "w") as f:
                     f.write(ca_cert_content)
                 print("Written CA certificate to /tmp/ca.pem")
 
             if cert_content:
-                with open(cert_file, 'w') as f:
+                with open(cert_file, "w") as f:
                     f.write(cert_content)
                 print("Written service certificate to /tmp/service.cert")
 
             if key_content:
-                with open(key_file, 'w') as f:
+                with open(key_file, "w") as f:
                     f.write(key_content)
                 print("Written service key to /tmp/service.key")
 
             self._producer = KafkaProducer(
-                bootstrap_servers=bootstrap_servers.split(','),
+                bootstrap_servers=bootstrap_servers.split(","),
                 security_protocol="SSL",
                 ssl_cafile=ca_file,
                 ssl_certfile=cert_file,
                 ssl_keyfile=key_file,
-                value_serializer=lambda v: json.dumps(v).encode('utf-8'),
-                key_serializer=lambda k: k.encode('utf-8') if k else None,
+                value_serializer=lambda v: json.dumps(v).encode("utf-8"),
+                key_serializer=lambda k: k.encode("utf-8") if k else None,
                 # Producer configuration for reliability
-                acks='all',  # Wait for all replicas to acknowledge
+                acks="all",  # Wait for all replicas to acknowledge
                 retries=3,
                 max_in_flight_requests_per_connection=1,
                 # Timeout settings
                 request_timeout_ms=30000,
                 # Batch settings for better performance
                 linger_ms=10,
-                batch_size=16384
+                batch_size=16384,
             )
 
             # Log initialization
-            self.log_event('kafka_producer_initialized', {
-                'status': 'success',
-                'bootstrap_servers': bootstrap_servers
-            })
+            self.log_event(
+                "kafka_producer_initialized",
+                {"status": "success", "bootstrap_servers": bootstrap_servers},
+            )
 
             print(f"Kafka producer initialized: {bootstrap_servers}")
 
@@ -102,19 +102,15 @@ class KafkaEventLogger:
             return
 
         try:
-            kafka_topic = os.environ.get('KAFKA_TOPIC', 'csv-parquet-events')
+            kafka_topic = os.environ.get("KAFKA_TOPIC", "gcp-cloud-run-fn-events")
 
             event = {
-                'event_type': event_type,
-                'timestamp': datetime.utcnow().isoformat(),
-                'data': event_data
+                "event_type": event_type,
+                "timestamp": datetime.utcnow().isoformat(),
+                "data": event_data,
             }
 
-            future = self._producer.send(
-                kafka_topic,
-                key=event_type,
-                value=event
-            )
+            future = self._producer.send(kafka_topic, key=event_type, value=event)
 
             # Non-blocking: add callbacks
             future.add_callback(self._on_send_success)
@@ -125,7 +121,9 @@ class KafkaEventLogger:
 
     def _on_send_success(self, metadata):
         """Callback for successful send"""
-        print(f"Event sent to Kafka: {metadata.topic}:{metadata.partition}:{metadata.offset}")
+        print(
+            f"Event sent to Kafka: {metadata.topic}:{metadata.partition}:{metadata.offset}"
+        )
 
     def _on_send_error(self, exception):
         """Callback for send error"""

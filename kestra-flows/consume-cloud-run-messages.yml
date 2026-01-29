@@ -10,9 +10,9 @@ tasks:
     beforeCommands:
       - pip install kafka-python
     inputFiles:
-      ca.pem: "{{ read('certs/ca.pem') }}"
-      service.cert: "{{ read('certs/service.cert') }}"
-      service.key: "{{ read('certs/service.key') }}"
+      ca.pem: '{{ read(''certs/ca.pem'') }}'
+      service.cert: '{{ read(''certs/service.cert'') }}'
+      service.key: '{{ read(''certs/service.key'') }}'
     outputFiles:
       - messages.json
     script: |
