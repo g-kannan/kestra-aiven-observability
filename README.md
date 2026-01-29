@@ -1,6 +1,4 @@
-# Events and Flow Documentation
-
-[Watch the Data Flow Walkthrough Video](DataFlowVideo.mp4)
+# Event Driven Data Pipeline observability with Kafka
 
 ## Project Summary
 
@@ -98,6 +96,8 @@ The `cloud-run-functions/main.py` generates the following events to Kafka:
 | `pipeline-events` | Kestra: `send-kafka-msg`, `log-pipeline-outcome-event` | Kestra: `consume-kafka-msg-load-bq` |
 
 ---
+[![Watch the Data Flow Walkthrough Video](kestra-kafka-observability.png)](DataFlowVideo.mp4)
+*Click the diagram above to watch the Data Flow Walkthrough Video*
 
 ## Event Flow Diagram
 
