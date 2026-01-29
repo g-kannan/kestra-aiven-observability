@@ -96,8 +96,12 @@ The `cloud-run-functions/main.py` generates the following events to Kafka:
 | `pipeline-events` | Kestra: `send-kafka-msg`, `log-pipeline-outcome-event` | Kestra: `consume-kafka-msg-load-bq` |
 
 ---
-[![Watch the Data Flow Walkthrough Video](kestra-kafka-observability.png)](DataFlowVideo.mp4)
-*Click the diagram above to watch the Data Flow Walkthrough Video*
+## Data Flow Walkthrough
+
+
+https://github.com/user-attachments/assets/7f807946-2ed4-4faa-a01e-c6eb3137dea5
+
+
 
 ## Event Flow Diagram
 
